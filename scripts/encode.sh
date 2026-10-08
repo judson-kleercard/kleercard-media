@@ -11,6 +11,8 @@
 #   -b HEX   background for the opaque MP4/poster of transparent sources, and the colour an
 #            opaque source fades to with -f (default ffffff)
 #   -f SEC   fade in at the start and out at the end (smooths the loop point)
+#   -m A:B   opaque sources: lift the flat baked-in background A (hex) to the page colour B (hex) with a
+#            small per-channel gain, so the video blends into the Webflow section (also sets -b to B)
 #   --force  overwrite an existing version (only for versions not yet live in Webflow)
 #
 # Outputs to <slug>/: <name>-vN.webm, <name>-vN.mp4, <name>-vN-poster.jpg  (name = last slug segment)
@@ -19,14 +21,15 @@
 # this script with --embed-only to include it in the embed code.
 set -euo pipefail
 
-SIZE=1920; POSTER_T=1.0; BG=ffffff; VER=""; EMBED_ONLY=0; FADE=0; FORCE=0
+SIZE=1920; POSTER_T=1.0; BG=ffffff; VER=""; EMBED_ONLY=0; FADE=0; FORCE=0; MATCH=""; BGSET=0
 POS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -v) VER="$2"; shift 2;;
     -s) SIZE="$2"; shift 2;;
     -p) POSTER_T="$2"; shift 2;;
-    -b) BG="${2#\#}"; shift 2;;
+    -b) BG="${2#\#}"; BGSET=1; shift 2;;
+    -m) MATCH="$2"; shift 2;;
     -f) FADE="$2"; shift 2;;
     --force) FORCE=1; shift;;
     --embed-only) EMBED_ONLY=1; shift;;
@@ -58,6 +61,14 @@ if [[ $EMBED_ONLY == 0 ]]; then
 
   # Scale down to fit SIZE, keep aspect, even dimensions, 30fps, never upscale.
   VF="scale='min($SIZE,iw)':'min($SIZE,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=30"
+  if [[ -n "$MATCH" ]]; then
+    SRC_BG="${MATCH%%:*}"; TGT="${MATCH##*:}"; TGT="${TGT#\#}"; [[ $BGSET == 0 ]] && BG="$TGT"
+    GAINS=$(python3 -c "
+a,b='$SRC_BG'.lstrip('#'),'$TGT'
+print(*[round(int(b[i:i+2],16)/int(a[i:i+2],16),4) for i in (0,2,4)])")
+    read -r GR GG GB <<<"$GAINS"
+    VF="colorchannelmixer=rr=$GR:gg=$GG:bb=$GB,$VF"
+  fi
   FADE_RGB=""; FADE_A=""
   if [[ "$FADE" != 0 ]]; then
     DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$IN")

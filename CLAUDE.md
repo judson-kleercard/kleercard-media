@@ -25,6 +25,7 @@ publish a new version instead.
   `pricing/enterprise/hero` -> `pricing/enterprise/hero/hero-v1.{webm,mp4}` + `hero-v1-poster.jpg`
   -> `https://media.getkleercard.com/pricing/enterprise/hero/hero-v1.webm`. Ask the user for the page path
   and a short name for the video if not given.
+- Webflow home hero section background is `#fbf9f8` (variable "Neutral Secondary"). For opaque sources with a flat baked-in background, use `-m SRCHEX:PAGEHEX` to lift it to the page colour (measure the source with ffmpeg first; hero used `-m f5f3f1:fcfafa -b fbf9f8`).
 - Encode flags: `-f SEC` fade in/out for a smooth loop, `-p SEC` poster time, `-b HEX` background, `--force` overwrites a version that is not yet live.
 - **Legacy flat folders are live in Webflow -- never move or rename:** `kleerfi-close`, `kleerfi-reporting`,
   `kleerfi-fund-accounting`, `close-the-books` (files `<slug>-vN.*`). New versions of these stay in place.
