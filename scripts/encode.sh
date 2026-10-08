@@ -3,13 +3,14 @@
 #
 # Usage: scripts/encode.sh <input> <slug> [-v N] [-s SIZE] [-p SECONDS] [-b HEXBG]
 #   <input>  source animation (mp4/mov/webm/gif/...); alpha is auto-detected
-#   <slug>   folder + file prefix, e.g. kleerfi-close
+#   <slug>   path under the repo root, mirroring the page: e.g. pricing/enterprise/hero
+#            (last segment = file prefix; legacy flat slugs like kleerfi-close still work)
 #   -v N     version number (default: highest existing + 1). Old versions are kept.
 #   -s SIZE  max width/height in px (default 1920; never upscales)
 #   -p SEC   poster frame time in seconds (default 1.0)
 #   -b HEX   background for the opaque MP4/poster of transparent sources (default ffffff)
 #
-# Outputs to <slug>/: <slug>-vN.webm, <slug>-vN.mp4, <slug>-vN-poster.jpg
+# Outputs to <slug>/: <name>-vN.webm, <name>-vN.mp4, <name>-vN-poster.jpg  (name = last slug segment)
 # Transparent sources: WebM keeps alpha (Chrome/Firefox). MP4 + poster are flattened onto -b.
 # Safari needs an HEVC-alpha .mov (macOS only) -- drop it in as <slug>-vN.mov and re-run
 # this script with --embed-only to include it in the embed code.
@@ -31,13 +32,14 @@ done
 [[ ${#POS[@]} -ge 2 ]] || { sed -n '2,15p' "$0"; exit 1; }
 IN="${POS[0]}"; SLUG="${POS[1]}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SLUG="${SLUG#/}"; SLUG="${SLUG%/}"; BASENAME="${SLUG##*/}"
 DIR="$ROOT/$SLUG"; mkdir -p "$DIR"
 
 if [[ -z "$VER" ]]; then
-  last=$(ls "$DIR" 2>/dev/null | sed -nE "s/^${SLUG}-v([0-9]+)[.-].*/\1/p" | sort -n | tail -1)
+  last=$(ls "$DIR" 2>/dev/null | sed -nE "s/^${BASENAME}-v([0-9]+)[.-].*/\1/p" | sort -n | tail -1)
   if [[ $EMBED_ONLY == 1 ]]; then VER="${last:-1}"; else VER=$(( ${last:-0} + 1 )); fi
 fi
-NAME="${SLUG}-v${VER}"; OUT="$DIR/$NAME"
+NAME="${BASENAME}-v${VER}"; OUT="$DIR/$NAME"
 BASE_URL="https://media.getkleercard.com/$SLUG/$NAME"
 
 if [[ $EMBED_ONLY == 0 ]]; then

@@ -21,6 +21,11 @@ publish a new version instead.
   code with that source listed first.
 
 ## Conventions
-- Folder = slug (`kleerfi-close`); files `<slug>-vN.{webm,mp4}` and `<slug>-vN-poster.jpg`.
+- **New videos:** the slug is a path mirroring the getkleercard.com page the video lives on, e.g.
+  `pricing/enterprise/hero` -> `pricing/enterprise/hero/hero-v1.{webm,mp4}` + `hero-v1-poster.jpg`
+  -> `https://media.getkleercard.com/pricing/enterprise/hero/hero-v1.webm`. Ask the user for the page path
+  and a short name for the video if not given.
+- **Legacy flat folders are live in Webflow -- never move or rename:** `kleerfi-close`, `kleerfi-reporting`,
+  `kleerfi-fund-accounting`, `close-the-books` (files `<slug>-vN.*`). New versions of these stay in place.
 - Source aspect ratio is preserved (square 1920x1920 and 16:9 1920x1080 both occur); max edge 1920, never upscaled; 30fps, no audio.
 - `close.*`, `close-poster.jpg` and `index.html` at the root are an old test page.
