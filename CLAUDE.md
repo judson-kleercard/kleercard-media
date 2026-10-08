@@ -34,3 +34,13 @@ publish a new version instead.
 ## Merging
 Do not merge to `main` (or open a PR) on your own. When the user says to merge, merge the working branch
 into `main` (via PR + merge, using the GitHub tools), then tell them the URLs go live once Pages rebuilds.
+
+## Network access: READ-ONLY. READ-ONLY. READ-ONLY.
+The sandbox may be allowed to reach `getkleercard.com`, `*.getkleercard.com` (www, media, ...) and
+`kleercard-2026.webflow.io`. That allowlist cannot restrict request types, so this rule is on us:
+
+- **READ ONLY.** Only `GET`/`HEAD` requests to look at pages, headers and files (e.g. confirm a video URL
+  returns 200, or read a page's CSS to find a background colour).
+- **NEVER WRITE.** No `POST`, `PUT`, `PATCH`, `DELETE`, no form submissions, no uploads, no logins, no
+  API calls that change anything on those hosts.
+- **READ-ONLY, ALWAYS.** If a task seems to need a write to those hosts, stop and ask the user.
