@@ -89,3 +89,10 @@ has exactly 0.000 frame-to-frame change.
 ```
 - The poster shows until the first frame decodes, if no source is playable, or if autoplay is blocked (iPhone
   Low Power Mode, some data savers). There is no other switching logic.
+
+## Home hero versions
+- `home/hero/hero-v1` + `home/hero-mobile/hero-mobile-v1`: the 14.3 s hero (16:9; mobile twin is a 1280x720 16:9).
+- `home/hero/hero-v2` + `home/hero-mobile/hero-mobile-v2`: the 18 s redesign (card tap, receipt match, QuickBooks sync,
+  spending dashboard). Desktop is 1920x1080; the mobile twin is a re-composed **1080x1080 square**. Both come from
+  exports with a keyframe every 3 frames (a faint 20 Hz edge flicker; judged acceptable by the user), re-encoded here
+  with normal GOPs. The responsive embed above works unchanged, just swap `-v1` for `-v2` in the URLs.
