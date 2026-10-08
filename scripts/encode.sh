@@ -85,19 +85,19 @@ print(*[round(int(b[i:i+2],16)/int(a[i:i+2],16),4) for i in (0,2,4)])")
 
   echo "Encoding $NAME (alpha: $HAS_ALPHA) ..."
   if [[ $HAS_ALPHA == 1 ]]; then
-    ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -i "$IN" -an -vf "$VF,format=yuva420p$FADE_A" \
+    ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -i "$IN" -an -vf "$VF,format=yuva420p$FADE_A,format=yuva420p" \
       -c:v libvpx-vp9 -pix_fmt yuva420p -b:v 0 -crf $CRF_W -row-mt 1 -auto-alt-ref 0 "$OUT.webm"
     FLAT="color=c=0x$BG:s=2x2,format=rgba[bg];[bg][0:v]scale2ref[bg2][v];[bg2][v]overlay=shortest=1,$VF,format=yuv420p"
-    FLATV="${FLAT}${FADE_RGB}"
+    FLATV="${FLAT}${FADE_RGB},format=yuv420p"
     ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -i "$IN" -an -filter_complex "$FLATV" \
-      -c:v libx264 -preset slow -crf $CRF_M -movflags +faststart "$OUT.mp4"
+      -c:v libx264 -pix_fmt yuv420p -profile:v high -level 4.2 -preset slow -crf $CRF_M -movflags +faststart "$OUT.mp4"
     ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -ss "$POSTER_T" -i "$IN" -filter_complex "$FLAT" \
       -frames:v 1 -q:v 3 "$OUT-poster.jpg"
   else
-    ffmpeg -hide_banner -loglevel error -y -i "$IN" -an -vf "$VF,format=yuv420p$FADE_RGB" \
-      -c:v libvpx-vp9 -b:v 0 -crf $CRF_W -row-mt 1 "$OUT.webm"
-    ffmpeg -hide_banner -loglevel error -y -i "$IN" -an -vf "$VF,format=yuv420p$FADE_RGB" \
-      -c:v libx264 -preset slow -crf $CRF_M -movflags +faststart "$OUT.mp4"
+    ffmpeg -hide_banner -loglevel error -y -i "$IN" -an -vf "$VF,format=yuv420p$FADE_RGB,format=yuv420p" \
+      -c:v libvpx-vp9 -pix_fmt yuv420p -b:v 0 -crf $CRF_W -row-mt 1 "$OUT.webm"
+    ffmpeg -hide_banner -loglevel error -y -i "$IN" -an -vf "$VF,format=yuv420p$FADE_RGB,format=yuv420p" \
+      -c:v libx264 -pix_fmt yuv420p -profile:v high -level 4.2 -preset slow -crf $CRF_M -movflags +faststart "$OUT.mp4"
     ffmpeg -hide_banner -loglevel error -y -ss "$POSTER_T" -i "$IN" -vf "$VF" -frames:v 1 -q:v 3 "$OUT-poster.jpg"
   fi
 fi

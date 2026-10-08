@@ -52,3 +52,36 @@ Count repeated frames only where nothing should be paused: a zero-change frame w
 frame rate (even timestamps) and the expected frame count. Ask Claude Design for a frame-by-frame render at constant
 60 fps (not a real-time recording). Drive/GitHub web uploads are capped (10 MB Drive connector download, 25 MB GitHub
 web upload, 30 MB chat upload), so ask for a single MP4 of 15-25 MB and attach it in chat.
+
+## Phone compatibility and responsive embeds
+- **Always 4:2:0.** MP4 must be H.264 High yuv420p (level 4.2) and WebM VP9 Profile 0 yuv420p. 4:4:4 output
+  (what fades/colour filters can silently produce) plays on desktop but phones refuse it and show only the
+  poster. `scripts/encode.sh` now forces this; after encoding, confirm with
+  `ffprobe -show_entries stream=profile,pix_fmt` (never `yuv444p`/`gbrp`/`High 4:4:4`).
+- **`<source media="...">` does nothing for video**, so a lighter mobile file needs a small script. For a hero
+  that has a mobile twin (`home/hero` + `home/hero-mobile`, encoded with `-s 1280`), use:
+
+```html
+<video autoplay muted loop playsinline preload="metadata"
+       poster="https://media.getkleercard.com/home/hero/hero-v1-poster.jpg"
+       style="width:100%;height:100%;display:block;">
+  <source src="https://media.getkleercard.com/home/hero/hero-v1.webm" type="video/webm">
+  <source src="https://media.getkleercard.com/home/hero/hero-v1.mp4" type="video/mp4">
+</video>
+<script>
+(function () {
+  var v = document.currentScript.previousElementSibling;
+  if (!v || v.tagName !== 'VIDEO') return;
+  if (window.matchMedia('(max-width: 767px)').matches) {
+    var b = 'https://media.getkleercard.com/home/hero-mobile/hero-mobile-v1';
+    v.poster = b + '-poster.jpg';
+    v.innerHTML = '<source src="' + b + '.webm" type="video/webm"><source src="' + b + '.mp4" type="video/mp4">';
+    v.load();
+  }
+  var p = v.play();
+  if (p && p.catch) p.catch(function () {});
+})();
+</script>
+```
+- The poster shows until the first frame decodes, if no source is playable, or if autoplay is blocked (iPhone
+  Low Power Mode, some data savers). There is no other switching logic.
