@@ -67,11 +67,18 @@ if [[ $EMBED_ONLY == 0 ]]; then
   VF="scale='min($SIZE,iw)':'min($SIZE,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=$FPS"
   if [[ -n "$MATCH" ]]; then
     SRC_BG="${MATCH%%:*}"; TGT="${MATCH##*:}"; TGT="${TGT#\#}"; [[ $BGSET == 0 ]] && BG="$TGT"
-    GAINS=$(python3 -c "
-a,b='$SRC_BG'.lstrip('#'),'$TGT'
-print(*[round(int(b[i:i+2],16)/int(a[i:i+2],16),4) for i in (0,2,4)])")
-    read -r GR GG GB <<<"$GAINS"
-    VF="colorchannelmixer=rr=$GR:gg=$GG:bb=$GB,$VF"
+    # Lift the flat background in the video's native YUV (BT.709 limited range) with per-plane LUTs.
+    # No RGB round trip, so chroma is never resampled (a colorchannelmixer detour softened coloured edges).
+    LUT=$(python3 -c "
+import subprocess
+def yuv(h):
+    r=subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-f','lavfi','-i','color=c=0x'+h+':s=2x2','-vf',
+        'scale=out_color_matrix=bt709:out_range=tv,format=yuv420p','-frames:v','1','-f','rawvideo','-'],capture_output=True).stdout
+    return float(r[0]),float(r[4]),float(r[5])
+(ys,us,vs),(yt,ut,vt)=yuv('$SRC_BG'.lstrip('#')),yuv('$TGT')
+print('%.5f %.3f %.3f'%((yt-16)/(ys-16),ut-us,vt-vs))")
+    read -r GY DU DV <<<"$LUT"
+    VF="lutyuv=y='clip((val-16)*$GY+16,16,235)':u='clip(val+($DU),16,240)':v='clip(val+($DV),16,240)',$VF"
   fi
   FADE_RGB=""; FADE_A=""
   if [[ "$FADE" != 0 ]]; then
@@ -79,6 +86,16 @@ print(*[round(int(b[i:i+2],16)/int(a[i:i+2],16),4) for i in (0,2,4)])")
     OST=$(awk -v d="$DUR" -v f="$FADE" 'BEGIN{printf "%.3f", d-f}')
     FADE_RGB=",fade=t=in:st=0:d=$FADE:color=0x$BG,fade=t=out:st=$OST:d=$FADE:color=0x$BG"
     FADE_A=",fade=t=in:st=0:d=$FADE:alpha=1,fade=t=out:st=$OST:d=$FADE:alpha=1"
+  fi
+  # Opaque sources: fade through an alpha overlay on a flat colour. Frames outside the fade are copied bit-exact;
+  # ffmpeg's colour `fade` filter resampled chroma on every frame (about 7% less colour-edge detail).
+  if [[ "$FADE" != 0 ]]; then
+    read -r OW OH <<<"$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$IN" | tr ',' ' ')"
+    read -r OW OH <<<"$(python3 -c "
+w,h=$OW,$OH; k=min(1,$SIZE/w,$SIZE/h); w,h=int(w*k)//2*2,int(h*k)//2*2; print(w,h)")"
+    OPQ_FILTER="-filter_complex [0:v]${VF},format=yuva420p,fade=t=in:st=0:d=${FADE}:alpha=1,fade=t=out:st=${OST}:d=${FADE}:alpha=1[v];color=c=0x${BG}:s=${OW}x${OH}:r=${FPS},format=yuv420p[bg];[bg][v]overlay=format=yuv420:shortest=1,format=yuv420p"
+  else
+    OPQ_FILTER="-vf ${VF},format=yuv420p"
   fi
   # libvpx needs to be told to decode alpha from VP9 webm sources.
   DEC=(); [[ "$IN" == *.webm ]] && DEC=(-c:v libvpx-vp9)
@@ -90,14 +107,14 @@ print(*[round(int(b[i:i+2],16)/int(a[i:i+2],16),4) for i in (0,2,4)])")
     FLAT="color=c=0x$BG:s=2x2,format=rgba[bg];[bg][0:v]scale2ref[bg2][v];[bg2][v]overlay=shortest=1,$VF,format=yuv420p"
     FLATV="${FLAT}${FADE_RGB},format=yuv420p"
     ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -i "$IN" -an -filter_complex "$FLATV" \
-      -c:v libx264 -pix_fmt yuv420p -profile:v high -level 4.2 -preset slow -crf $CRF_M -movflags +faststart "$OUT.mp4"
+      -c:v libx264 -pix_fmt yuv420p -profile:v high -level 4.2 -colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv -preset slow -crf $CRF_M -movflags +faststart "$OUT.mp4"
     ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -ss "$POSTER_T" -i "$IN" -filter_complex "$FLAT" \
       -frames:v 1 -q:v 3 "$OUT-poster.jpg"
   else
-    ffmpeg -hide_banner -loglevel error -y -i "$IN" -an -vf "$VF,format=yuv420p$FADE_RGB,format=yuv420p" \
-      -c:v libvpx-vp9 -pix_fmt yuv420p -b:v 0 -crf $CRF_W -row-mt 1 "$OUT.webm"
-    ffmpeg -hide_banner -loglevel error -y -i "$IN" -an -vf "$VF,format=yuv420p$FADE_RGB,format=yuv420p" \
-      -c:v libx264 -pix_fmt yuv420p -profile:v high -level 4.2 -preset slow -crf $CRF_M -movflags +faststart "$OUT.mp4"
+    ffmpeg -hide_banner -loglevel error -y -i "$IN" -an $OPQ_FILTER \
+      -c:v libvpx-vp9 -pix_fmt yuv420p -colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv -b:v 0 -crf $CRF_W -row-mt 1 "$OUT.webm"
+    ffmpeg -hide_banner -loglevel error -y -i "$IN" -an $OPQ_FILTER \
+      -c:v libx264 -pix_fmt yuv420p -profile:v high -level 4.2 -colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv -preset slow -crf $CRF_M -movflags +faststart "$OUT.mp4"
     ffmpeg -hide_banner -loglevel error -y -ss "$POSTER_T" -i "$IN" -vf "$VF" -frames:v 1 -q:v 3 "$OUT-poster.jpg"
   fi
 fi
