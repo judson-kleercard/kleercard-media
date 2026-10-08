@@ -14,6 +14,7 @@
 #   -f SEC   fade in at the start and out at the end (smooths the loop point)
 #   -m A:B   opaque sources: lift the flat baked-in background A (hex) to the page colour B (hex) with a
 #            small per-channel gain, so the video blends into the Webflow section (also sets -b to B)
+#   -c M:W   quality: x264 CRF for the MP4 and VP9 CRF for the WebM (defaults 23:34; lower = better/bigger)
 #   --force  overwrite an existing version (only for versions not yet live in Webflow)
 #
 # Outputs to <slug>/: <name>-vN.webm, <name>-vN.mp4, <name>-vN-poster.jpg  (name = last slug segment)
@@ -22,7 +23,7 @@
 # this script with --embed-only to include it in the embed code.
 set -euo pipefail
 
-SIZE=1920; POSTER_T=1.0; BG=ffffff; VER=""; EMBED_ONLY=0; FADE=0; FORCE=0; MATCH=""; BGSET=0; FPS=30
+SIZE=1920; POSTER_T=1.0; BG=ffffff; VER=""; EMBED_ONLY=0; FADE=0; FORCE=0; MATCH=""; BGSET=0; FPS=30; CRF_M=23; CRF_W=34
 POS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -31,6 +32,7 @@ while [[ $# -gt 0 ]]; do
     -p) POSTER_T="$2"; shift 2;;
     -b) BG="${2#\#}"; BGSET=1; shift 2;;
     -m) MATCH="$2"; shift 2;;
+    -c) CRF_M="${2%%:*}"; CRF_W="${2##*:}"; shift 2;;
     -r) FPS="$2"; shift 2;;
     -f) FADE="$2"; shift 2;;
     --force) FORCE=1; shift;;
@@ -84,18 +86,18 @@ print(*[round(int(b[i:i+2],16)/int(a[i:i+2],16),4) for i in (0,2,4)])")
   echo "Encoding $NAME (alpha: $HAS_ALPHA) ..."
   if [[ $HAS_ALPHA == 1 ]]; then
     ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -i "$IN" -an -vf "$VF,format=yuva420p$FADE_A" \
-      -c:v libvpx-vp9 -pix_fmt yuva420p -b:v 0 -crf 34 -row-mt 1 -auto-alt-ref 0 "$OUT.webm"
+      -c:v libvpx-vp9 -pix_fmt yuva420p -b:v 0 -crf $CRF_W -row-mt 1 -auto-alt-ref 0 "$OUT.webm"
     FLAT="color=c=0x$BG:s=2x2,format=rgba[bg];[bg][0:v]scale2ref[bg2][v];[bg2][v]overlay=shortest=1,$VF,format=yuv420p"
     FLATV="${FLAT}${FADE_RGB}"
     ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -i "$IN" -an -filter_complex "$FLATV" \
-      -c:v libx264 -preset slow -crf 23 -movflags +faststart "$OUT.mp4"
+      -c:v libx264 -preset slow -crf $CRF_M -movflags +faststart "$OUT.mp4"
     ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -ss "$POSTER_T" -i "$IN" -filter_complex "$FLAT" \
       -frames:v 1 -q:v 3 "$OUT-poster.jpg"
   else
     ffmpeg -hide_banner -loglevel error -y -i "$IN" -an -vf "$VF,format=yuv420p$FADE_RGB" \
-      -c:v libvpx-vp9 -b:v 0 -crf 34 -row-mt 1 "$OUT.webm"
+      -c:v libvpx-vp9 -b:v 0 -crf $CRF_W -row-mt 1 "$OUT.webm"
     ffmpeg -hide_banner -loglevel error -y -i "$IN" -an -vf "$VF,format=yuv420p$FADE_RGB" \
-      -c:v libx264 -preset slow -crf 23 -movflags +faststart "$OUT.mp4"
+      -c:v libx264 -preset slow -crf $CRF_M -movflags +faststart "$OUT.mp4"
     ffmpeg -hide_banner -loglevel error -y -ss "$POSTER_T" -i "$IN" -vf "$VF" -frames:v 1 -q:v 3 "$OUT-poster.jpg"
   fi
 fi
