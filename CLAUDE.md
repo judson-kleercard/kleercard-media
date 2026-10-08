@@ -45,3 +45,10 @@ The sandbox may be allowed to reach `getkleercard.com`, `*.getkleercard.com` (ww
 - **NEVER WRITE.** No `POST`, `PUT`, `PATCH`, `DELETE`, no form submissions, no uploads, no logins, no
   API calls that change anything on those hosts.
 - **READ-ONLY, ALWAYS.** If a task seems to need a write to those hosts, stop and ask the user.
+
+## Checking an animation for jitter
+Count repeated frames only where nothing should be paused: a zero-change frame with real motion on both sides
+(within ~3 frames) is stutter; zero-change frames in holds between scenes are intentional. Also confirm constant
+frame rate (even timestamps) and the expected frame count. Ask Claude Design for a frame-by-frame render at constant
+60 fps (not a real-time recording). Drive/GitHub web uploads are capped (10 MB Drive connector download, 25 MB GitHub
+web upload, 30 MB chat upload), so ask for a single MP4 of 15-25 MB and attach it in chat.
