@@ -51,7 +51,11 @@ Count repeated frames only where nothing should be paused: a zero-change frame w
 (within ~3 frames) is stutter; zero-change frames in holds between scenes are intentional. Also confirm constant
 frame rate (even timestamps) and the expected frame count. Ask Claude Design for a frame-by-frame render at constant
 60 fps (not a real-time recording). Drive/GitHub web uploads are capped (10 MB Drive connector download, 25 MB GitHub
-web upload, 30 MB chat upload), so ask for a single MP4 of 15-25 MB and attach it in chat.
+web upload, 30 MB chat upload), so ask for a single MP4 under 28 MB and attach it in chat. **Never ask for a minimum file size**: it makes the
+exporter pad the file (e.g. a keyframe every 3 frames), which bakes a 20 Hz flicker onto every edge. Ask for a
+normal keyframe interval (~1/second, `-g 60`) and constant-quality H.264 (CRF 14-16). Verify with
+`ffprobe -show_entries frame=pict_type` (I-frames should be ~60 frames apart) and by checking that a still region
+has exactly 0.000 frame-to-frame change.
 
 ## Phone compatibility and responsive embeds
 - **Always 4:2:0.** MP4 must be H.264 High yuv420p (level 4.2) and WebM VP9 Profile 0 yuv420p. 4:4:4 output
@@ -85,3 +89,10 @@ web upload, 30 MB chat upload), so ask for a single MP4 of 15-25 MB and attach i
 ```
 - The poster shows until the first frame decodes, if no source is playable, or if autoplay is blocked (iPhone
   Low Power Mode, some data savers). There is no other switching logic.
+
+## Home hero versions
+- `home/hero/hero-v1` + `home/hero-mobile/hero-mobile-v1`: the 14.3 s hero (16:9; mobile twin is a 1280x720 16:9).
+- `home/hero/hero-v2` + `home/hero-mobile/hero-mobile-v2`: the 18 s redesign (card tap, receipt match, QuickBooks sync,
+  spending dashboard). Desktop is 1920x1080; the mobile twin is a re-composed **1080x1080 square**. Both come from
+  exports with a keyframe every 3 frames (a faint 20 Hz edge flicker; judged acceptable by the user), re-encoded here
+  with normal GOPs. The responsive embed above works unchanged, just swap `-v1` for `-v2` in the URLs.
