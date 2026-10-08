@@ -22,5 +22,5 @@ publish a new version instead.
 
 ## Conventions
 - Folder = slug (`kleerfi-close`); files `<slug>-vN.{webm,mp4}` and `<slug>-vN-poster.jpg`.
-- Existing videos are square 1920x1920, 30fps, no audio.
+- Source aspect ratio is preserved (square 1920x1920 and 16:9 1920x1080 both occur); max edge 1920, never upscaled; 30fps, no audio.
 - `close.*`, `close-poster.jpg` and `index.html` at the root are an old test page.
