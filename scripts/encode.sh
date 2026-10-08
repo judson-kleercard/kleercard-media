@@ -10,6 +10,7 @@
 #   -p SEC   poster frame time in seconds (default 1.0)
 #   -b HEX   background for the opaque MP4/poster of transparent sources, and the colour an
 #            opaque source fades to with -f (default ffffff)
+#   -r FPS   output frame rate (default 30; use 60 for smooth UI motion, ~1.5-2x file size)
 #   -f SEC   fade in at the start and out at the end (smooths the loop point)
 #   -m A:B   opaque sources: lift the flat baked-in background A (hex) to the page colour B (hex) with a
 #            small per-channel gain, so the video blends into the Webflow section (also sets -b to B)
@@ -21,7 +22,7 @@
 # this script with --embed-only to include it in the embed code.
 set -euo pipefail
 
-SIZE=1920; POSTER_T=1.0; BG=ffffff; VER=""; EMBED_ONLY=0; FADE=0; FORCE=0; MATCH=""; BGSET=0
+SIZE=1920; POSTER_T=1.0; BG=ffffff; VER=""; EMBED_ONLY=0; FADE=0; FORCE=0; MATCH=""; BGSET=0; FPS=30
 POS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -30,6 +31,7 @@ while [[ $# -gt 0 ]]; do
     -p) POSTER_T="$2"; shift 2;;
     -b) BG="${2#\#}"; BGSET=1; shift 2;;
     -m) MATCH="$2"; shift 2;;
+    -r) FPS="$2"; shift 2;;
     -f) FADE="$2"; shift 2;;
     --force) FORCE=1; shift;;
     --embed-only) EMBED_ONLY=1; shift;;
@@ -60,7 +62,7 @@ if [[ $EMBED_ONLY == 0 ]]; then
   [[ "$PIXFMT" =~ (yuva|rgba|bgra|argb|abgr|gbrap|pal8|ya8) || "$ALPHA_TAG" == 1 ]] && HAS_ALPHA=1
 
   # Scale down to fit SIZE, keep aspect, even dimensions, 30fps, never upscale.
-  VF="scale='min($SIZE,iw)':'min($SIZE,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=30"
+  VF="scale='min($SIZE,iw)':'min($SIZE,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=$FPS"
   if [[ -n "$MATCH" ]]; then
     SRC_BG="${MATCH%%:*}"; TGT="${MATCH##*:}"; TGT="${TGT#\#}"; [[ $BGSET == 0 ]] && BG="$TGT"
     GAINS=$(python3 -c "

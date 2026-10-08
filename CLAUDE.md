@@ -26,7 +26,7 @@ publish a new version instead.
   -> `https://media.getkleercard.com/pricing/enterprise/hero/hero-v1.webm`. Ask the user for the page path
   and a short name for the video if not given.
 - Webflow home hero section background is `#fbf9f8` (variable "Neutral Secondary"). For opaque sources with a flat baked-in background, use `-m SRCHEX:PAGEHEX` to lift it to the page colour (measure the source with ffmpeg first; hero used `-m f5f3f1:fcfafa -b fbf9f8`).
-- Encode flags: `-f SEC` fade in/out for a smooth loop, `-p SEC` poster time, `-b HEX` background, `--force` overwrites a version that is not yet live.
+- Encode flags: `-r FPS` (default 30; use 60 for smooth UI motion), `-f SEC` fade in/out for a smooth loop, `-p SEC` poster time, `-b HEX` background, `--force` overwrites a version that is not yet live.
 - **Legacy flat folders are live in Webflow -- never move or rename:** `kleerfi-close`, `kleerfi-reporting`,
   `kleerfi-fund-accounting`, `close-the-books` (files `<slug>-vN.*`). New versions of these stay in place.
 - Source aspect ratio is preserved (square 1920x1920 and 16:9 1920x1080 both occur); max edge 1920, never upscaled; 30fps, no audio.
@@ -45,3 +45,10 @@ The sandbox may be allowed to reach `getkleercard.com`, `*.getkleercard.com` (ww
 - **NEVER WRITE.** No `POST`, `PUT`, `PATCH`, `DELETE`, no form submissions, no uploads, no logins, no
   API calls that change anything on those hosts.
 - **READ-ONLY, ALWAYS.** If a task seems to need a write to those hosts, stop and ask the user.
+
+## Checking an animation for jitter
+Count repeated frames only where nothing should be paused: a zero-change frame with real motion on both sides
+(within ~3 frames) is stutter; zero-change frames in holds between scenes are intentional. Also confirm constant
+frame rate (even timestamps) and the expected frame count. Ask Claude Design for a frame-by-frame render at constant
+60 fps (not a real-time recording). Drive/GitHub web uploads are capped (10 MB Drive connector download, 25 MB GitHub
+web upload, 30 MB chat upload), so ask for a single MP4 of 15-25 MB and attach it in chat.
