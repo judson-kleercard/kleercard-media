@@ -51,7 +51,11 @@ Count repeated frames only where nothing should be paused: a zero-change frame w
 (within ~3 frames) is stutter; zero-change frames in holds between scenes are intentional. Also confirm constant
 frame rate (even timestamps) and the expected frame count. Ask Claude Design for a frame-by-frame render at constant
 60 fps (not a real-time recording). Drive/GitHub web uploads are capped (10 MB Drive connector download, 25 MB GitHub
-web upload, 30 MB chat upload), so ask for a single MP4 of 15-25 MB and attach it in chat.
+web upload, 30 MB chat upload), so ask for a single MP4 under 28 MB and attach it in chat. **Never ask for a minimum file size**: it makes the
+exporter pad the file (e.g. a keyframe every 3 frames), which bakes a 20 Hz flicker onto every edge. Ask for a
+normal keyframe interval (~1/second, `-g 60`) and constant-quality H.264 (CRF 14-16). Verify with
+`ffprobe -show_entries frame=pict_type` (I-frames should be ~60 frames apart) and by checking that a still region
+has exactly 0.000 frame-to-frame change.
 
 ## Phone compatibility and responsive embeds
 - **Always 4:2:0.** MP4 must be H.264 High yuv420p (level 4.2) and WebM VP9 Profile 0 yuv420p. 4:4:4 output
