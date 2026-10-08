@@ -25,8 +25,8 @@ publish a new version instead.
   `pricing/enterprise/hero` -> `pricing/enterprise/hero/hero-v1.{webm,mp4}` + `hero-v1-poster.jpg`
   -> `https://media.getkleercard.com/pricing/enterprise/hero/hero-v1.webm`. Ask the user for the page path
   and a short name for the video if not given.
-- Webflow home hero section background is `#fbf9f8` (variable "Neutral Secondary"). For opaque sources with a flat baked-in background, use `-m SRCHEX:PAGEHEX` to lift it to the page colour (measure the source with ffmpeg first; hero used `-m f5f3f1:fcfafa -b fbf9f8`).
-- Encode flags: `-c M:W` (x264 CRF : VP9 CRF, default 23:34; hero used 17:26 to preserve sub-pixel edge precision), `-r FPS` (default 30; use 60 for smooth UI motion), `-f SEC` fade in/out for a smooth loop, `-p SEC` poster time, `-b HEX` background, `--force` overwrites a version that is not yet live.
+- Webflow home hero section background is `#fbf9f8` (variable "Neutral Secondary"). For opaque sources with a flat baked-in background, use `-m SRCHEX:PAGEHEX` to lift it to the page colour in native YUV (measure the source background with ffmpeg first; hero v2 used `-m f5f3f1:fbf9f8 -b fbf9f8`). Do not go through RGB (`colorchannelmixer`) or ffmpeg's `fade=color=` filter: both resample chroma and soften coloured edges (measured 83-94% of source colour-edge detail; now 95-104%). Fades use an alpha overlay for the same reason.
+- Encode flags: `-c M:W` (x264 CRF : VP9 CRF, default 23:34; hero v2 used 14:22 because the files are small and sharpness matters), `-r FPS` (default 30; use 60 for smooth UI motion), `-f SEC` fade in/out for a smooth loop, `-p SEC` poster time, `-b HEX` background, `--force` overwrites a version that is not yet live.
 - **Legacy flat folders are live in Webflow -- never move or rename:** `kleerfi-close`, `kleerfi-reporting`,
   `kleerfi-fund-accounting`, `close-the-books` (files `<slug>-vN.*`). New versions of these stay in place.
 - Source aspect ratio is preserved (square 1920x1920 and 16:9 1920x1080 both occur); max edge 1920, never upscaled; 30fps, no audio.
