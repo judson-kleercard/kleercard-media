@@ -8,7 +8,10 @@
 #   -v N     version number (default: highest existing + 1). Old versions are kept.
 #   -s SIZE  max width/height in px (default 1920; never upscales)
 #   -p SEC   poster frame time in seconds (default 1.0)
-#   -b HEX   background for the opaque MP4/poster of transparent sources (default ffffff)
+#   -b HEX   background for the opaque MP4/poster of transparent sources, and the colour an
+#            opaque source fades to with -f (default ffffff)
+#   -f SEC   fade in at the start and out at the end (smooths the loop point)
+#   --force  overwrite an existing version (only for versions not yet live in Webflow)
 #
 # Outputs to <slug>/: <name>-vN.webm, <name>-vN.mp4, <name>-vN-poster.jpg  (name = last slug segment)
 # Transparent sources: WebM keeps alpha (Chrome/Firefox). MP4 + poster are flattened onto -b.
@@ -16,7 +19,7 @@
 # this script with --embed-only to include it in the embed code.
 set -euo pipefail
 
-SIZE=1920; POSTER_T=1.0; BG=ffffff; VER=""; EMBED_ONLY=0
+SIZE=1920; POSTER_T=1.0; BG=ffffff; VER=""; EMBED_ONLY=0; FADE=0; FORCE=0
 POS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -24,6 +27,8 @@ while [[ $# -gt 0 ]]; do
     -s) SIZE="$2"; shift 2;;
     -p) POSTER_T="$2"; shift 2;;
     -b) BG="${2#\#}"; shift 2;;
+    -f) FADE="$2"; shift 2;;
+    --force) FORCE=1; shift;;
     --embed-only) EMBED_ONLY=1; shift;;
     -h|--help) sed -n '2,15p' "$0"; exit 0;;
     *) POS+=("$1"); shift;;
@@ -44,7 +49,7 @@ BASE_URL="https://media.getkleercard.com/$SLUG/$NAME"
 
 if [[ $EMBED_ONLY == 0 ]]; then
   [[ -f "$IN" ]] || { echo "Input not found: $IN" >&2; exit 1; }
-  [[ -e "$OUT.mp4" ]] && { echo "$NAME already exists; pass -v to choose another version" >&2; exit 1; }
+  [[ -e "$OUT.mp4" && $FORCE == 0 ]] && { echo "$NAME already exists; pass -v to choose another version" >&2; exit 1; }
 
   PIXFMT=$(ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt -of csv=p=0 "$IN")
   ALPHA_TAG=$(ffprobe -v error -select_streams v:0 -show_entries stream_tags=alpha_mode -of csv=p=0 "$IN" || true)
@@ -53,22 +58,30 @@ if [[ $EMBED_ONLY == 0 ]]; then
 
   # Scale down to fit SIZE, keep aspect, even dimensions, 30fps, never upscale.
   VF="scale='min($SIZE,iw)':'min($SIZE,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=30"
+  FADE_RGB=""; FADE_A=""
+  if [[ "$FADE" != 0 ]]; then
+    DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$IN")
+    OST=$(awk -v d="$DUR" -v f="$FADE" 'BEGIN{printf "%.3f", d-f}')
+    FADE_RGB=",fade=t=in:st=0:d=$FADE:color=0x$BG,fade=t=out:st=$OST:d=$FADE:color=0x$BG"
+    FADE_A=",fade=t=in:st=0:d=$FADE:alpha=1,fade=t=out:st=$OST:d=$FADE:alpha=1"
+  fi
   # libvpx needs to be told to decode alpha from VP9 webm sources.
   DEC=(); [[ "$IN" == *.webm ]] && DEC=(-c:v libvpx-vp9)
 
   echo "Encoding $NAME (alpha: $HAS_ALPHA) ..."
   if [[ $HAS_ALPHA == 1 ]]; then
-    ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -i "$IN" -an -vf "$VF,format=yuva420p" \
+    ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -i "$IN" -an -vf "$VF,format=yuva420p$FADE_A" \
       -c:v libvpx-vp9 -pix_fmt yuva420p -b:v 0 -crf 34 -row-mt 1 -auto-alt-ref 0 "$OUT.webm"
     FLAT="color=c=0x$BG:s=2x2,format=rgba[bg];[bg][0:v]scale2ref[bg2][v];[bg2][v]overlay=shortest=1,$VF,format=yuv420p"
-    ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -i "$IN" -an -filter_complex "$FLAT" \
+    FLATV="${FLAT}${FADE_RGB}"
+    ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -i "$IN" -an -filter_complex "$FLATV" \
       -c:v libx264 -preset slow -crf 23 -movflags +faststart "$OUT.mp4"
     ffmpeg -hide_banner -loglevel error -y "${DEC[@]}" -ss "$POSTER_T" -i "$IN" -filter_complex "$FLAT" \
       -frames:v 1 -q:v 3 "$OUT-poster.jpg"
   else
-    ffmpeg -hide_banner -loglevel error -y -i "$IN" -an -vf "$VF,format=yuv420p" \
+    ffmpeg -hide_banner -loglevel error -y -i "$IN" -an -vf "$VF,format=yuv420p$FADE_RGB" \
       -c:v libvpx-vp9 -b:v 0 -crf 34 -row-mt 1 "$OUT.webm"
-    ffmpeg -hide_banner -loglevel error -y -i "$IN" -an -vf "$VF,format=yuv420p" \
+    ffmpeg -hide_banner -loglevel error -y -i "$IN" -an -vf "$VF,format=yuv420p$FADE_RGB" \
       -c:v libx264 -preset slow -crf 23 -movflags +faststart "$OUT.mp4"
     ffmpeg -hide_banner -loglevel error -y -ss "$POSTER_T" -i "$IN" -vf "$VF" -frames:v 1 -q:v 3 "$OUT-poster.jpg"
   fi
