@@ -30,3 +30,7 @@ publish a new version instead.
   `kleerfi-fund-accounting`, `close-the-books` (files `<slug>-vN.*`). New versions of these stay in place.
 - Source aspect ratio is preserved (square 1920x1920 and 16:9 1920x1080 both occur); max edge 1920, never upscaled; 30fps, no audio.
 - `close.*`, `close-poster.jpg` and `index.html` at the root are an old test page.
+
+## Merging
+Do not merge to `main` (or open a PR) on your own. When the user says to merge, merge the working branch
+into `main` (via PR + merge, using the GitHub tools), then tell them the URLs go live once Pages rebuilds.
